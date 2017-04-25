@@ -29,6 +29,14 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+
+        <!-- Pact consumer -->
+        <dependency>
+            <groupId>au.com.dius</groupId>
+            <artifactId>pact-jvm-consumer_2.11</artifactId>
+            <version>3.3.8</version>
+        </dependency>
+
         <!-- Testing -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
