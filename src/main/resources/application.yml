@@ -1,0 +1,12 @@
+zuul:
+  routes:
+    legacy:
+      path: /**
+      url: https://api.github.com/
+
+ribbon:
+  eureka:
+    enabled: false
+
+server:
+  port: 8080
