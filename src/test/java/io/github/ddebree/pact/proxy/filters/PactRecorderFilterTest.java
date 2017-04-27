@@ -21,12 +21,12 @@ public class PactRecorderFilterTest {
 
     @Before
     public void setup() {
-        this.filter = new PactRecorderFilter();
+        this.filter = new PactRecorderFilter("target/temp");
     }
 
     @Test
     public void testFilterType() {
-        assertThat(filter.filterType()).isEqualTo("pre");
+        assertThat(filter.filterType()).isEqualTo("post");
     }
 
     @Test

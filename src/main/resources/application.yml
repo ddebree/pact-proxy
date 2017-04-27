@@ -1,3 +1,5 @@
+outputPath: output
+
 zuul:
   routes:
     legacy:
@@ -9,4 +11,4 @@ ribbon:
     enabled: false
 
 server:
-  port: 8080
+  port: 9999

@@ -26,17 +26,17 @@ public class PactProxyApplicationTest {
     @Autowired
     private TestRestTemplate rest;
 
-    static ConfigurableApplicationContext bookService;
+    static ConfigurableApplicationContext testService;
 
     @BeforeClass
     public static void startBookService() {
-        bookService = SpringApplication.run(BookService.class,
+        testService = SpringApplication.run(TestService.class,
                 "--server.port=8090");
     }
 
     @AfterClass
     public static void closeBookService() {
-        bookService.close();
+        testService.close();
     }
 
     @Before
@@ -46,14 +46,14 @@ public class PactProxyApplicationTest {
 
     @Test
     public void test() {
-        String resp = rest.getForObject("/books/available", String.class);
+        String resp = rest.getForObject("/available", String.class);
         assertThat(resp).isEqualTo("books");
     }
 
     @Configuration
     @EnableAutoConfiguration
     @RestController
-    static class BookService {
+    static class TestService {
         @RequestMapping("/available")
         public String getAvailable() {
             return "books";
