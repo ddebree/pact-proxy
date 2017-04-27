@@ -1,18 +1,26 @@
 package io.github.ddebree.pact.proxy.filters;
 
 import com.netflix.zuul.context.RequestContext;
+import io.github.ddebree.pact.proxy.service.PactResultWriter;
 import org.apache.catalina.servlet4preview.http.HttpServletRequest;
 import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.runners.MockitoJUnitRunner;
 import org.springframework.boot.test.rule.OutputCapture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+@RunWith(MockitoJUnitRunner.class)
 public class PactRecorderFilterTest {
+
+    @Mock
+    private PactResultWriter pactResultWriter;
 
     private PactRecorderFilter filter;
 
@@ -21,7 +29,7 @@ public class PactRecorderFilterTest {
 
     @Before
     public void setup() {
-        this.filter = new PactRecorderFilter("target/temp");
+        this.filter = new PactRecorderFilter(pactResultWriter);
     }
 
     @Test

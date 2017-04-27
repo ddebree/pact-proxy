@@ -2,13 +2,13 @@ outputPath: output
 
 zuul:
   routes:
-    legacy:
+    proxy:
       path: /**
-      url: https://api.github.com/
+      url: ${remote}
 
 ribbon:
   eureka:
     enabled: false
 
 server:
-  port: 9999
+  port: ${port:9999}
