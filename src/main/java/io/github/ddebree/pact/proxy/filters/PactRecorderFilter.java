@@ -3,6 +3,8 @@ package io.github.ddebree.pact.proxy.filters;
 import javax.servlet.http.HttpServletRequest;
 
 import au.com.dius.pact.consumer.ConsumerPactBuilder;
+import au.com.dius.pact.consumer.dsl.PactDslRequestWithPath;
+import au.com.dius.pact.consumer.dsl.PactDslResponse;
 import au.com.dius.pact.model.RequestResponsePact;
 import com.netflix.zuul.context.RequestContext;
 import com.netflix.zuul.ZuulFilter;
@@ -76,19 +78,25 @@ public class PactRecorderFilter extends ZuulFilter {
                 context.setResponseBody(responseBody);
             }
 
-            RequestResponsePact pact = ConsumerPactBuilder
+            PactDslRequestWithPath pactRequest = ConsumerPactBuilder
                     .consumer("client")
                     .hasPactWith("server")
                     .uponReceiving("Request id " + requestId)
                         .path(url)
-                        .method(request.getMethod())
-                        //TODO: Dont write anything if there isnt a body
-                        .body(requestBody != null ? requestBody : "")
+                        .method(request.getMethod());
+            if (requestBody != null) {
+                pactRequest
+                        .body(requestBody);
+            }
+            PactDslResponse pactResponse = pactRequest
                     .willRespondWith()
-                        .status(context.getResponseStatusCode())
-                        //TODO: Dont write anything if there isnt a body
-                        .body(responseBody != null ? responseBody : "")
-                    .toFragment().toPact();
+                        .status(context.getResponseStatusCode());
+            if (responseBody != null) {
+                pactResponse
+                        .body(responseBody);
+            }
+
+            RequestResponsePact pact = pactResponse.toFragment().toPact();
 
             pactResultWriter.writePact(url, requestId, pact);
         } catch (IOException e) {
