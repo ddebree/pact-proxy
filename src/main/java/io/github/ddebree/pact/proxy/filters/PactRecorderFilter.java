@@ -13,14 +13,16 @@ import io.github.ddebree.pact.proxy.service.PactResultWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StreamUtils;
 
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.charset.Charset;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.zip.GZIPInputStream;
 
+import static org.springframework.cloud.netflix.zuul.filters.support.FilterConstants.POST_TYPE;
 import static org.springframework.util.ReflectionUtils.rethrowRuntimeException;
 
 @Component
@@ -30,15 +32,21 @@ public class PactRecorderFilter extends ZuulFilter {
     private static final Logger LOGGER = LoggerFactory.getLogger(PactRecorderFilter.class);
 
     private final PactResultWriter pactResultWriter;
+    private final String clientName;
+    private final String providerName;
 
     @Autowired
-    public PactRecorderFilter(PactResultWriter pactResultWriter) {
+    public PactRecorderFilter(PactResultWriter pactResultWriter,
+                              @Value("${clientName}") String clientName,
+                              @Value("${providerName}") String providerName) {
         this.pactResultWriter = pactResultWriter;
+        this.clientName = clientName;
+        this.providerName = providerName;
     }
 
     @Override
     public String filterType() {
-        return "post";
+        return POST_TYPE;
     }
 
     @Override
@@ -60,41 +68,21 @@ public class PactRecorderFilter extends ZuulFilter {
 
             String url = request.getRequestURL().toString();
 
-            LOGGER.info("{} request to {}, filename: {}", request.getMethod(), url);
-
-            String requestBody = null;
-            InputStream in = (InputStream) context.get("requestEntity");
-            if (in == null) {
-                in = context.getRequest().getInputStream();
-            }
-            if (in != null) {
-                requestBody = StreamUtils.copyToString(in, Charset.forName("UTF-8"));
-            }
-
-            String responseBody = null;
-            InputStream stream = context.getResponseDataStream();
-            if (stream != null) {
-                responseBody = StreamUtils.copyToString(stream, Charset.forName("UTF-8"));
-                context.setResponseBody(responseBody);
-            }
+            LOGGER.info("Request context: {}", context);
+            LOGGER.info("Request {}: {} request to {}", requestId, request.getMethod(), url);
 
             PactDslRequestWithPath pactRequest = ConsumerPactBuilder
-                    .consumer("client")
-                    .hasPactWith("server")
+                    .consumer(clientName)
+                    .hasPactWith(providerName)
                     .uponReceiving("Request id " + requestId)
                         .path(url)
                         .method(request.getMethod());
-            if (requestBody != null) {
-                pactRequest
-                        .body(requestBody);
-            }
+            buildRequestBody(pactRequest);
+
             PactDslResponse pactResponse = pactRequest
                     .willRespondWith()
                         .status(context.getResponseStatusCode());
-            if (responseBody != null) {
-                pactResponse
-                        .body(responseBody);
-            }
+            buildResponseBody(pactResponse);
 
             RequestResponsePact pact = pactResponse.toFragment().toPact();
 
@@ -105,4 +93,59 @@ public class PactRecorderFilter extends ZuulFilter {
 
         return null;
     }
+
+    private void buildRequestBody(PactDslRequestWithPath pactRequest) throws IOException {
+        final RequestContext context = RequestContext.getCurrentContext();
+        String requestBody = null;
+        InputStream in = (InputStream) context.get("requestEntity");
+        if (in == null) {
+            in = context.getRequest().getInputStream();
+
+        }
+        if (in != null) {
+            String encoding = context.getRequest().getCharacterEncoding();
+            requestBody = StreamUtils.copyToString(in,
+                    Charset.forName(encoding != null ? encoding : "UTF-8"));
+        }
+        if (requestBody != null && requestBody.length() > 0) {
+            pactRequest.body(requestBody);
+        }
+    }
+
+    private void buildResponseBody(PactDslResponse pactResponse) throws IOException {
+        RequestContext context = RequestContext.getCurrentContext();
+        if (context.getResponseBody() != null) {
+            String body = context.getResponseBody();
+            pactResponse.body(body);
+        } else if (context.getResponseDataStream() != null) {
+            String encoding = context.getRequest().getCharacterEncoding();
+            InputStream stream = context.getResponseDataStream();
+            byte[] responseBytes = StreamUtils.copyToByteArray(stream);
+            context.setResponseDataStream(new ByteArrayInputStream(responseBytes));
+
+            if (context.getResponseGZipped()) {
+                LOGGER.warn("GZipped content found");
+                final Long len = context.getOriginContentLength();
+                if (len == null || len > 0) {
+                    try {
+                        String responseBody = StreamUtils.copyToString(new GZIPInputStream(new ByteArrayInputStream(responseBytes)),
+                                Charset.forName(encoding != null ? encoding : "UTF-8"));
+                        pactResponse.body(responseBody);
+                    } catch (java.util.zip.ZipException ex) {
+                        LOGGER.debug(
+                                "gzip expected but not "
+                                        + "received assuming unencoded response "
+                                        + RequestContext.getCurrentContext()
+                                        .getRequest().getRequestURL()
+                                        .toString());
+                    }
+                }
+            } else {
+                String responseBody = StreamUtils.copyToString(new ByteArrayInputStream(responseBytes),
+                        Charset.forName(encoding != null ? encoding : "UTF-8"));
+                pactResponse.body(responseBody);
+            }
+        }
+    }
+
 }

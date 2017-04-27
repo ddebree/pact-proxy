@@ -1,4 +1,6 @@
 outputPath: output
+clientName: ${client:client}
+providerName: ${server:server}
 
 zuul:
   routes:

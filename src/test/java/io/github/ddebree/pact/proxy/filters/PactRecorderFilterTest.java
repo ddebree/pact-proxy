@@ -5,6 +5,7 @@ import io.github.ddebree.pact.proxy.service.PactResultWriter;
 import org.apache.catalina.servlet4preview.http.HttpServletRequest;
 import org.hamcrest.Matchers;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -29,7 +30,7 @@ public class PactRecorderFilterTest {
 
     @Before
     public void setup() {
-        this.filter = new PactRecorderFilter(pactResultWriter);
+        this.filter = new PactRecorderFilter(pactResultWriter, "client", "server");
     }
 
     @Test
